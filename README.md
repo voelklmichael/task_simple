@@ -3,10 +3,13 @@
 [![Latest version](https://img.shields.io/crates/v/task_simple?color=mediumvioletred)](https://crates.io/crates/task_simple)
 [![Documentation](https://docs.rs/task_simple/badge.svg)](https://docs.rs/task_simple)
 
-Execute functions in the background, both on desktop and web.
-On desktop, threads are used. On web/wasm, webworkers are used.
+Execute functions in the background, both on desktop/native and web/wasm.
+On desktop/native, threads are used. On web/wasm, webworkers are used.
 
 <br>
+Note: There is an example in examples/simple_example.
+
+
 
 #### License
 
