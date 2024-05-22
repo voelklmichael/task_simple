@@ -3,6 +3,8 @@ name = "task_simple"
 version = "0.1.0"
 edition = "2021"
 authors = ["Michael Völkl <michaelvoelkl@zoho.com>"]
+description = "Execute functions in the background, both on desktop and web"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 serde = { version = "1.0.202", features = ["derive"] }
