@@ -1,6 +1,6 @@
 [package]
 name = "task_simple"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Michael Völkl <michaelvoelkl@zoho.com>"]
 description = "Execute functions in the background, both on desktop and web"
