@@ -41,6 +41,7 @@ pub trait Function: 'static + Default + Sized {
 
 /// This is a single task
 pub struct Task<F: Function> {
+    task_count: usize,
     #[cfg(not(target_arch = "wasm32"))]
     task: std_task::TaskStd<F>,
     #[cfg(target_arch = "wasm32")]
@@ -54,8 +55,10 @@ impl<F: Function> std::fmt::Debug for Task<F> {
 
 impl<F: Function> Task<F> {
     /// Start a new task in the background. Enqueue jobs to run in the background.
+    #[must_use]
     pub fn new(task_name: &str) -> Self {
         Self {
+            task_count: 0,
             task: {
                 #[cfg(not(target_arch = "wasm32"))]
                 {
@@ -70,11 +73,24 @@ impl<F: Function> Task<F> {
     }
     /// Enqueue a new job.
     pub fn enqueue(&mut self, msg: F::Input) {
+        self.task_count += 1;
         self.task.enqueue(msg);
     }
+
+    /// Check if some job is ongoing
+    #[must_use]
+    pub fn task_is_ongoing(&self) -> bool {
+        self.task_count > 0
+    }
+
     /// Check if the job is done (using First In, First Out)
-    pub fn check(&self) -> Option<F::Output> {
-        self.task.check()
+    #[must_use]
+    pub fn check(&mut self) -> Option<F::Output> {
+        let output = self.task.check();
+        if output.is_some() {
+            self.task_count -= 1;
+        }
+        output
     }
 }
 
