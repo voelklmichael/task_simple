@@ -18,7 +18,7 @@
 mod task;
 #[cfg(target_arch = "wasm32")]
 pub use task::{gloo_worker, WebWorker};
-pub use task::{Function, Task, TaskPool, Ticket};
+pub use task::{Function, JobState, Task, TaskPool, Ticket};
 
 mod ongoing_task;
 #[cfg(target_arch = "wasm32")]
