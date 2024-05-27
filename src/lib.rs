@@ -23,4 +23,4 @@ pub use task::{Function, Task, TaskPool, Ticket};
 mod ongoing_task;
 #[cfg(target_arch = "wasm32")]
 pub use ongoing_task::WebWorkerBackground;
-pub use ongoing_task::{BackgroundFunction, BackgroundTask};
+pub use ongoing_task::{BackgroundFunction, BackgroundTask, StateProgress, StateTrait};

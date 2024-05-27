@@ -13,7 +13,7 @@ enum Input<Initial, Trigger> {
 pub(super) struct BackgroundTaskStd<F: BackgroundFunction> {
     trigger: Sender<Input<F::InitialState, F::Trigger>>,
     event: Receiver<F::Event>,
-    done_receiver: Receiver<()>,
+    done_receiver: Receiver<super::Ongoing>,
     _thread: JoinHandle<()>,
 }
 impl<F: BackgroundFunction> BackgroundTaskStd<F> {
@@ -24,27 +24,69 @@ impl<F: BackgroundFunction> BackgroundTaskStd<F> {
         let thread = std::thread::Builder::new()
             .name(thread_name.into())
             .spawn(move || {
-                let mut state = None;
-                while let Ok(input) = input_receiver.recv() {
-                    match input {
-                        Input::Initial(initial) => {
-                            state =
-                                Some(F::initial_state(Default::default(), initial, |e| {
-                                    let _=event_sender.send(e);
-                                }))
+                let mut state: Option<<F as BackgroundFunction>::State> = None;
+                loop {
+                    let input = {
+                        use super::StateProgress::*;
+                        use super::StateTrait;
+                        let ongoing = match state
+                            .as_mut()
+                            .map(|state| state.progress())
+                            .unwrap_or(NothingOngoing)
+                        {
+                            NothingOngoing => false,
+                            Ongoing => true,
+                            Event(event) => {
+                                let r = event_sender.send(event);
+                                if r.is_err() {
+                                    break;
+                                }
+                                true
+                            }
+                        };
+                        if ongoing {
+                            match input_receiver.try_recv() {
+                                Ok(input) => Some(input),
+                                Err(std::sync::mpsc::TryRecvError::Empty) => None,
+                                Err(std::sync::mpsc::TryRecvError::Disconnected) => break,
+                            }
+                        } else {
+                            if state.is_some() {
+                                if done_sender.send(super::Ongoing::NotOnging).is_err() {
+                                    break;
+                                }
+                            }
+                            let input = match input_receiver.recv() {
+                                Ok(input) => Some(input),
+                                Err(std::sync::mpsc::RecvError) => break,
+                            };
+                            if done_sender.send(super::Ongoing::Ongoing).is_err() {
+                                break;
+                            }
+                            input
                         }
-                        Input::Trigger(trigger) => {
+                    };
+
+                    match input {
+                        Some(Input::Initial(initial)) => {
+                            state = Some(F::initial_state(Default::default(), initial, |e| {
+                                let _ = event_sender.send(e);
+                            }))
+                        }
+                        Some(Input::Trigger(trigger)) => {
                             if let Some(initial_state) = &mut state {
-                                F::trigger(initial_state,trigger, |e| {
-                                    let _=event_sender.send(e);
+                                F::trigger(initial_state, trigger, |e| {
+                                    let _ = event_sender.send(e);
                                 })
                             } else {
-                                unreachable!("Initial State not yet initialized - this is set already inside this function");
+                                unreachable!(
+                                    "Initial State not yet initialized - \
+                                        this is set already inside this function"
+                                );
                             }
                         }
+                        None => {}
                     }
-                    let r= done_sender.send(());
-                    if r.is_err(){break;}
                 }
             })
             .unwrap();
@@ -65,7 +107,7 @@ impl<F: BackgroundFunction> BackgroundTaskStd<F> {
         self.event.try_recv().ok()
     }
 
-    pub(crate) fn check_done(&self) -> bool {
-        self.done_receiver.try_recv().is_ok()
+    pub(crate) fn check_done(&self) -> Option<super::Ongoing> {
+        self.done_receiver.try_recv().ok()
     }
 }
