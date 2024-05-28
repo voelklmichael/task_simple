@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use super::BackgroundFunction;
 pub(super) struct BackgroundTaskWasm<F: BackgroundFunction> {
     event_update: std::rc::Rc<std::cell::Cell<VecDeque<F::Event>>>,
-    done_update: std::rc::Rc<std::cell::Cell<VecDeque<()>>>,
+    done_update: std::rc::Rc<std::cell::Cell<VecDeque<super::Ongoing>>>,
     bridge: gloo_worker::WorkerBridge<WebWorkerBackground<F>>,
 }
 impl<F: BackgroundFunction> BackgroundTaskWasm<F> {
@@ -16,12 +16,15 @@ impl<F: BackgroundFunction> BackgroundTaskWasm<F> {
             .callback(move |response| {
                 // TODO: this seems to be a data-race issue
                 if let Some(event) = response {
+                    let mut previous = done_sender.take();
+                    previous.push_back(super::Ongoing::Ongoing);
+                    done_sender.set(previous);
                     let mut previous = event_sender.take();
                     previous.push_back(event);
                     event_sender.set(previous);
                 } else {
                     let mut previous = done_sender.take();
-                    previous.push_back(());
+                    previous.push_back(super::Ongoing::NotOnging);
                     done_sender.set(previous);
                 }
             })
@@ -40,9 +43,9 @@ impl<F: BackgroundFunction> BackgroundTaskWasm<F> {
         let d = self.event_update.as_ref();
         d.take().pop_front()
     }
-    pub(super) fn check_done(&self) -> bool {
+    pub(super) fn check_done(&self) -> Option<super::Ongoing> {
         let d = self.done_update.as_ref();
-        d.take().pop_front().is_some()
+        d.take().pop_front()
     }
 }
 /// This is a webworker running the Function F::call

@@ -106,8 +106,7 @@ impl<F: BackgroundFunction> BackgroundTaskStd<F> {
     pub(super) fn event(&self) -> Option<F::Event> {
         self.event.try_recv().ok()
     }
-
-    pub(crate) fn check_done(&self) -> Option<super::Ongoing> {
+    pub(super) fn check_done(&self) -> Option<super::Ongoing> {
         self.done_receiver.try_recv().ok()
     }
 }
